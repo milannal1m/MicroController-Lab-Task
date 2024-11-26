@@ -147,6 +147,16 @@ void readSensor()
 	printf("%li\n\n",timediff);
 }
 
+/* Beispiel für Umrechnung ohne Gleitkomma-Arithmetik (Scale Optional)
+
+int calculate_scaled(int variable) {
+    // Skalierungsfaktor für höhere Genauigkeit
+    const int scale = 1000;
+    return (50 * variable * scale) / (127 * scale);
+}
+
+*/
+
 void loop()
 {
 	//
