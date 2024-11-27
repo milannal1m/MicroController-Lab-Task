@@ -126,7 +126,7 @@ void readSensor()
 
 
 	*GPIO_OUT_REG |= (1 << 2);                          // Set GPIO2 to HIGH
-	delay(1000000);                                     // Wait 1s eigentlich 10us
+	delay(10);                                     		// Wait 10us
 	*GPIO_OUT_REG &= ~(1 << 2);                         // Set GPIO2 to LOW
 
 	while(!(*GPIO_IN_REG & (1<<3))){                    // While the Echo is LOW
