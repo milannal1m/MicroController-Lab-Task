@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
-#include <reg.h>
+#include <esp32c3_reg.h>
+#include "esp_intr_alloc.h"
 
 #define LEDS 16
 uint8_t pixels[LEDS*3]; // 3  color channels per LED
