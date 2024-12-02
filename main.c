@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
-#include <esp32c3_reg.h>
-#include "esp_intr_alloc.h"
+#include <reg.h>
 
 #define LEDS 16
 uint8_t pixels[LEDS*3]; // 3  color channels per LED
@@ -103,12 +102,14 @@ void config_timer()
     Configures the Timer
     */
 
-	*TIMG_T0CONFIG_REG |= (5 << 16);                    // Sets the Divider of the Timer to 5
-	*TIMG_T0CONFIG_REG |= (1 << 10);                    // Enables the Alarm of the Timer
+  *TIMG_T0CONFIG_REG &= ~(1 << 9);
+  *TIMG_T0CONFIG_REG |= (1 << 30);
 
-	*TIMG_T0ALARMLO_REG = 1048576;                      // Sets the Alarm Value of the Timer to 1048576
+	*TIMG_T0CONFIG_REG |= (80 << 13);                    // Sets the Divider of the Timer to 5
+	
+  *TIMG_T0LOADLO_REG &= 0;
 
-	*TIMG_T0ALARMLO_REG |= (1 << 31);                   //Enables the Timer
+	*TIMG_T0CONFIG_REG |= (1 << 31);                   //Enables the Timer
 
 }
 
@@ -120,10 +121,9 @@ void readSensor()
 
 	config_timer();
 
-    long time1 = 0;                                     // Variables to save the time at the rising and falling edge of the Echo signal
-    long time2 = 0;
-    long timediff = 0;
-
+  long time = 0;                                     // Variables to save the time at the rising and falling edge of the Echo signal
+  long time2 = 0;
+  long timediff = 0;
 
 	*GPIO_OUT_REG |= (1 << 2);                          // Set GPIO2 to HIGH
 	delay(10);                                     		// Wait 10us
@@ -131,20 +131,21 @@ void readSensor()
 
 	while(!(*GPIO_IN_REG & (1<<3))){                    // While the Echo is LOW
     }
+  
+  *TIMG_T0UPDATE_REG |= (1 << 31);                    // Allows the Counter of the Timer to be read
+	while(!(*TIMG_T0UPDATE_REG == 0)){}
+  time = *TIMG_T0LO_REG;
 
 	while(*GPIO_IN_REG & (1<<3)){                       // While the Echo is HIGH
-		if(time1 != 0){
-            *TIMG_T0UPDATE_REG |= (1 << 31);            // Allows the Counter of the Timer to be read
-			time1 = *TIMG_T0LO_REG;                     // Saves the time at the rising edge of the Echo signal
-		}
 	}
 
 	*TIMG_T0UPDATE_REG |= (1 << 31);                    // Allows the Counter of the Timer to be read
-	time2 = *TIMG_T0LO_REG;                             // Saves the time at the falling edge of the Echo signal
+	while(!(*TIMG_T0UPDATE_REG == 0)){}
+  time2 = *TIMG_T0LO_REG;                             // Saves the time at the falling edge of the Echo signal
 
-	timediff = time2-time1;                             // Calculates the time between the rising and falling edge of the Echo signal
+  timediff = time2-time;
 
-	printf("%li\n\n",timediff);
+	printf("%li\n\n",timediff/58);
 }
 
 /* Beispiel für Umrechnung ohne Gleitkomma-Arithmetik (Scale Optional)
