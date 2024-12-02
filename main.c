@@ -157,12 +157,18 @@ void setPixel(long distance)
 	Also sets the color of the LEDs to fade from green, if the object is close, to yellow, orange and red as the object gets closer.
 	*/
 
-	int numberOfLEDS = (50-distance)/3 +1;       		// Calculates the number of LEDs to light up
+	int numberOfLEDS = 0;
+
+	if(distance < 51 && distance > 4){					// If the distance is between 5 and 50 cm
+		numberOfLEDS = (50-distance)/3 +1;       		// Calculates the number of LEDs to light up
+	}else if(distance < 5){								// If the distance is less than 5 cm
+		numberOfLEDS = 16;								// Sets 16 LED
+	}
 
 	int green = ((16-numberOfLEDS)*10000)/588;     		// Calculates the Green Channel to go from 255-0 as an object gets closer
 	int red = ((numberOfLEDS-1)*10000)/588;  			// Calculates the Red Channel to go from 0-255 as an object gets closer
 
-	for (int i = 0; i < numberOfLEDS*3; i=3) {
+	for (int i = 0; i < numberOfLEDS*3; i+=3) {
 		pixels[i] = green;								// Sets the Green Channel 
 		pixels[i+1] = red;								// Sets the Red Channel 
 		pixels[i+2] = 0;								// Sets the Blue Channel 
