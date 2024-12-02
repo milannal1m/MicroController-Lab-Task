@@ -102,66 +102,83 @@ void config_timer()
     Configures the Timer
     */
 
-  *TIMG_T0CONFIG_REG &= ~(1 << 9);
-  *TIMG_T0CONFIG_REG |= (1 << 30);
+  	*TIMG_T0CONFIG_REG &= ~(1 << 9);					// Enables the APB Clock
+  	*TIMG_T0CONFIG_REG |= (1 << 30);					// Enables the Timer to Increment
 
-	*TIMG_T0CONFIG_REG |= (80 << 13);                    // Sets the Divider of the Timer to 5
+	*TIMG_T0CONFIG_REG |= (80 << 13);                   // Sets the Divider of the Timer
 	
-  *TIMG_T0LOADLO_REG &= 0;
-
-	*TIMG_T0CONFIG_REG |= (1 << 31);                   //Enables the Timer
+  	*TIMG_T0LOADLO_REG &= 0;							// Initializes the Timer value with 0
+	*TIMG_T0CONFIG_REG |= (1 << 31);                   	//Enables the Timer
 
 }
 
 long readSensor()
 {
 	/*
-    Reads the Echo Sensor
+    Reads the Echo Sensor by using a Timer to measure the time between the rising and falling edge of the Echo signal.
+	The Echo Signal is started by setting the Trigger Signal to HIGH for 10us.
+	The Echo Signal is connected to GPIO3 and the Trigger Signal is connected to GPIO2.
+	The time between the rising and falling edge of the Echo signal is converted to cm and returned.
     */
 
-	config_timer();
+	long time = 0;                                     	// Variables to save the time at the rising 
+	long time2 = 0;									   	// and falling edge of the Echo signal
+	long timediff = 0;							   		// Variable to save the difference between time and time2
 
-  long time = 0;                                     // Variables to save the time at the rising and falling edge of the Echo signal
-  long time2 = 0;
-  long timediff = 0;
-
-	*GPIO_OUT_REG |= (1 << 2);                          // Set GPIO2 to HIGH
+	*GPIO_OUT_REG |= (1 << 2);                          // Sets the Trigger to HIGH
 	delay(10);                                     		// Wait 10us
-	*GPIO_OUT_REG &= ~(1 << 2);                         // Set GPIO2 to LOW
+	*GPIO_OUT_REG &= ~(1 << 2);                         // Sets the Trigger to LOW
 
-	while(!(*GPIO_IN_REG & (1<<3))){                    // While the Echo is LOW
-    }
+	while(!(*GPIO_IN_REG & (1<<3))){}                   // Waits while the Echo is LOW
   
-  *TIMG_T0UPDATE_REG |= (1 << 31);                    // Allows the Counter of the Timer to be read
-	while(!(*TIMG_T0UPDATE_REG == 0)){}
-  time = *TIMG_T0LO_REG;
+  	*TIMG_T0UPDATE_REG |= (1 << 31);                    // Allows the Counter of the Timer to be read
+	while(!(*TIMG_T0UPDATE_REG == 0)){}					// Waits until the Timer is updated
+  	time = *TIMG_T0LO_REG;								// Reads the time at the rising edge of the Echo signal
 
-	while(*GPIO_IN_REG & (1<<3)){                       // While the Echo is HIGH
-	}
+	while(*GPIO_IN_REG & (1<<3)){}                    	// Waits while the Echo is HIGH
 
 	*TIMG_T0UPDATE_REG |= (1 << 31);                    // Allows the Counter of the Timer to be read
-	while(!(*TIMG_T0UPDATE_REG == 0)){}
-  time2 = *TIMG_T0LO_REG;                             // Saves the time at the falling edge of the Echo signal
+	while(!(*TIMG_T0UPDATE_REG == 0)){}  			 	// Waits until the Timer is updated
+  	time2 = *TIMG_T0LO_REG;                             // Saves the time at the falling edge of the Echo signal
 
-  timediff = time2-time;
+  	timediff = time2-time;								// Calculates the difference between time and time2
 
-  long distance = timediff/58;                         // Calculates the distance in cm
+  	long distance = timediff/58;                        // Calculates the distance in cm
+	return distance;
 
 }
 
-/* Beispiel für Umrechnung ohne Gleitkomma-Arithmetik (Scale Optional)
+void setPixel(long distance)
+{
+	/*
+	Sets the Pixels of the LED Strip.
+	Sets 1 LED if an object is 5cm away and 16 LEDs if an object is 50cm away.
+	Also sets the color of the LEDs to fade from green, if the object is close, to yellow, orange and red as the object gets closer.
+	*/
 
-int calculate_scaled(int variable) {
-    // Skalierungsfaktor für höhere Genauigkeit
-    const int scale = 1000;
-    return (50 * variable * scale) / (127 * scale);
+	int numberOfLEDS = (50-distance)/3 +1;       		// Calculates the number of LEDs to light up
+
+	int green = ((16-numberOfLEDS)*10000)/588;     		// Calculates the Green Channel to go from 255-0 as an object gets closer
+	int red = ((numberOfLEDS-1)*10000)/588;  			// Calculates the Red Channel to go from 0-255 as an object gets closer
+
+	for (int i = 0; i < numberOfLEDS*3; i=3) {
+		pixels[i] = green;								// Sets the Green Channel 
+		pixels[i+1] = red;								// Sets the Red Channel 
+		pixels[i+2] = 0;								// Sets the Blue Channel 
+	}
+	
 }
-
-*/
 
 void loop()
 {
-	//
+	/*
+	Main Loop
+	*/
+
+	long distance = readSensor();                       // Reads the Sensor
+	setPixel(distance);                                 // Sets the Pixels
+	display();                                          // Displays the Pixels
+	delay(1000000);                                     // Waits 1s
 }
 
 
@@ -170,23 +187,10 @@ void loop()
 void app_main(void)
 {
 	
-    *GPIO_ENABLE_REG |= 0b110;  // enable GPIO1 output
-
-	for (int i = 0; i < 15; i++) {
-    	pixels[i] = 150;
-	}
-
-	for (int i = 15; i < LEDS*3; i++) {
-    	pixels[i] = 0;
-	}
+    *GPIO_ENABLE_REG |= 0b110; 							 // enable GPIO1 and GPIO2 output
+	config_timer();										 // Configures the Timer
 
 	while(1){
-		readSensor();
+		loop();
 	}
-	
-	//display();
-
 }
-
-// *gpio_out_reg &= ~(1 << 2); AUS
-// *gpio_out_reg |= (1 << 2);  AN
