@@ -113,7 +113,7 @@ void config_timer()
 
 }
 
-void readSensor()
+long readSensor()
 {
 	/*
     Reads the Echo Sensor
@@ -145,7 +145,8 @@ void readSensor()
 
   timediff = time2-time;
 
-	printf("%li\n\n",timediff/58);
+  long distance = timediff/58;                         // Calculates the distance in cm
+
 }
 
 /* Beispiel für Umrechnung ohne Gleitkomma-Arithmetik (Scale Optional)
