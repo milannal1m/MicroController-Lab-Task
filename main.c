@@ -173,6 +173,10 @@ void setPixel(long distance)
 		pixels[i+1] = red;								// Sets the Red Channel 
 		pixels[i+2] = 0;								// Sets the Blue Channel 
 	}
+
+	for(int i = numberOfLEDS*3; i<LEDS*3; i++){ 		// Sets unused LEDs to 0
+		pixels[i] = 0;									
+	}
 	
 }
 
@@ -187,9 +191,6 @@ void loop()
 	display();                                          // Displays the Pixels
 	delay(1000000);                                     // Waits 1s
 }
-
-
-
 
 void app_main(void)
 {
