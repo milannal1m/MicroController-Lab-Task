@@ -57,7 +57,8 @@ void display(int port, int number){
 			factor = 1;
 		}
 
-		asm volatile (
+		asm volatile 
+		(
 
 			//GPIO1 HIGH
 			"lw t1, gpio_out_reg			\n\t"   		// t1 = *gpio_out_reg
@@ -252,7 +253,7 @@ void adc_init(){
 uint32_t adc_read(){
 
 	/*
-		Reads the ADC value.
+		Reads the ADC value and returns it.
 	*/
 
 	int adcValue = 9999; 									// Initial Value 
