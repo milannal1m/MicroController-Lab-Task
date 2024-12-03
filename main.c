@@ -2,9 +2,15 @@
 #include <stdint.h>
 #include <esp32c3_reg.h>
 #include "esp_intr_alloc.h"
+#include "calibrate_adc.h"
 
 #define LEDS 16
 uint8_t pixels[LEDS*3]; // 3  color channels per LED
+
+volatile uint32_t* gpio_enable_reg = (volatile uint32_t*) GPIO_ENABLE_REG;
+volatile uint32_t* gpio_out_reg = (volatile uint32_t*) GPIO_OUT_REG;
+volatile uint32_t* gpio_in_reg = (volatile uint32_t*) GPIO_IN_REG;
+
 
 void delay(uint32_t us)
 {
@@ -97,58 +103,6 @@ void display()
 
 }
 
-void config_timer()
-{
-    /*
-    Configures the Timer
-    */
-
-  	*TIMG_T0CONFIG_REG &= ~(1 << 9);					// Enables the APB Clock
-  	*TIMG_T0CONFIG_REG |= (1 << 30);					// Enables the Timer to Increment
-
-	*TIMG_T0CONFIG_REG |= (80 << 13);                   // Sets the Divider of the Timer
-	
-  	*TIMG_T0LOADLO_REG &= 0;							// Initializes the Timer value with 0
-	*TIMG_T0CONFIG_REG |= (1 << 31);                   	//Enables the Timer
-
-}
-
-long readSensor()
-{
-	/*
-    Reads the Echo Sensor by using a Timer to measure the time between the rising and falling edge of the Echo signal.
-	The Echo Signal is started by setting the Trigger Signal to HIGH for 10us.
-	The Echo Signal is connected to GPIO3 and the Trigger Signal is connected to GPIO2.
-	The time between the rising and falling edge of the Echo signal is converted to cm and returned.
-    */
-
-	long time = 0;                                     	// Variables to save the time at the rising 
-	long time2 = 0;									   	// and falling edge of the Echo signal
-	long timediff = 0;							   		// Variable to save the difference between time and time2
-
-	*GPIO_OUT_REG |= (1 << 2);                          // Sets the Trigger to HIGH
-	delay(10);                                     		// Wait 10us
-	*GPIO_OUT_REG &= ~(1 << 2);                         // Sets the Trigger to LOW
-
-	while(!(*GPIO_IN_REG & (1<<3))){}                   // Waits while the Echo is LOW
-  
-  	*TIMG_T0UPDATE_REG |= (1 << 31);                    // Allows the Counter of the Timer to be read
-	while(!(*TIMG_T0UPDATE_REG == 0)){}					// Waits until the Timer is updated
-  	time = *TIMG_T0LO_REG;								// Reads the time at the rising edge of the Echo signal
-
-	while(*GPIO_IN_REG & (1<<3)){}                    	// Waits while the Echo is HIGH
-
-	*TIMG_T0UPDATE_REG |= (1 << 31);                    // Allows the Counter of the Timer to be read
-	while(!(*TIMG_T0UPDATE_REG == 0)){}  			 	// Waits until the Timer is updated
-  	time2 = *TIMG_T0LO_REG;                             // Saves the time at the falling edge of the Echo signal
-
-  	timediff = time2-time;								// Calculates the difference between time and time2
-
-  	long distance = timediff/58;                        // Calculates the distance in cm
-	return distance;
-
-}
-
 void setPixel(long distance)
 {
 	/*
@@ -180,6 +134,113 @@ void setPixel(long distance)
 	
 }
 
+void config_timer()
+{
+    /*
+    Configures the Timer
+    */
+
+  	*TIMG_T0CONFIG_REG &= ~(1 << 9);					// Enables the APB Clock
+  	*TIMG_T0CONFIG_REG |= (1 << 30);					// Enables the Timer to Increment
+
+	*TIMG_T0CONFIG_REG |= (80 << 13);                   // Sets the Divider of the Timer
+	
+  	*TIMG_T0LOADLO_REG &= 0;							// Initializes the Timer value with 0
+	*TIMG_T0CONFIG_REG |= (1 << 31);                   	//Enables the Timer
+
+}
+
+long readSensor()
+{
+	/*
+    Reads the Echo Sensor by using a Timer to measure the time between the rising and falling edge of the Echo signal.
+	The Echo Signal is started by setting the Trigger Signal to HIGH for 10us.
+	The Echo Signal is connected to GPIO3 and the Trigger Signal is connected to GPIO2.
+	The time between the rising and falling edge of the Echo signal is converted to cm and returned.
+    */
+
+	printf("test\n\n");
+
+	long time = 0;                                     	// Variables to save the time at the rising 
+	long time2 = 0;									   	// and falling edge of the Echo signal
+	long timediff = 0;							   		// Variable to save the difference between time and time2
+
+	*gpio_out_reg|= (1 << 2);                          // Sets the Trigger to HIGH
+	delay(10);                                     		// Wait 10us
+	*gpio_out_reg &= ~(1 << 2);                         // Sets the Trigger to LOW
+
+	while(!(*gpio_in_reg & (1<<3))){}                   // Waits while the Echo is LOW
+  
+  	*TIMG_T0UPDATE_REG |= (1 << 31);                    // Allows the Counter of the Timer to be read
+	while(!(*TIMG_T0UPDATE_REG == 0)){}					// Waits until the Timer is updated
+  	time = *TIMG_T0LO_REG;								// Reads the time at the rising edge of the Echo signal
+
+	while(*gpio_in_reg & (1<<3)){}                    	// Waits while the Echo is HIGH
+
+	*TIMG_T0UPDATE_REG |= (1 << 31);                    // Allows the Counter of the Timer to be read
+	while(!(*TIMG_T0UPDATE_REG == 0)){}  			 	// Waits until the Timer is updated
+  	time2 = *TIMG_T0LO_REG;                             // Saves the time at the falling edge of the Echo signal
+
+  	timediff = time2-time;								// Calculates the difference between time and time2
+
+  	long distance = timediff/58;                        // Calculates the distance in cm
+	return distance;
+
+}
+
+void adc_init(){
+	*IO_MUX_GPIO0_REG &= ~(0b11 << 7);
+
+	*APB_SARADC_CTRL_REG |= 1;
+	*APB_SARADC_CTRL_REG |= (1 << 1);
+
+	*APB_SARADC_ONETIME_SAMPLE_REG |= (0b11 << 23);
+	*APB_SARADC_ONETIME_SAMPLE_REG |= (1 << 31); 
+	*APB_SARADC_ONETIME_SAMPLE_REG &= ~(0b1111 << 25);
+
+	*APB_SARADC_INT_ENA_REG |= (1 << 31); 
+
+	adc_calibrate(1);
+
+	// STarten: APB_SARADC_ONETIME_SAMPLE_REG |= (1<< 29);
+	//Stoppen: APB_SARADC_ONETIME_SAMPLE_REG &= (0<< 29);
+	// Interrupt Abfrage: *APB_SARADC_INT_RAW_REG 31. Bit muss stimmen
+	//Untere 12 Bit digitaler Wert: *APB_SARADC_1_DATA_STATUS_REG
+}
+
+uint32_t adc_read(){
+
+	int value = 9999;
+
+	*APB_SARADC_ONETIME_SAMPLE_REG |= (1<< 29);
+	for (int n = 0; n < 1000; n++) {}
+	*APB_SARADC_ONETIME_SAMPLE_REG &= ~(1<< 29);
+
+	while(((*APB_SARADC_INT_RAW_REG & (1<<31)) >> 31)!=1){}
+
+	value = *APB_SARADC_1_DATA_STATUS_REG & 0xFFFF; //0-4095
+
+	return value;
+}
+
+void setBrightness()
+{
+	adc_init();
+	int value = adc_read();
+
+	value = (value-19)/4 + 100; //100-1450
+
+	for(int i = 0; i<LEDS*3; i++){
+
+		int color = (pixels[i]*value)/1000; //*0,1 - * 1,45
+		if(color < 256){
+			pixels[i] = color;
+		}
+	}
+}
+
+
+
 void loop()
 {
 	/*
@@ -188,6 +249,7 @@ void loop()
 
 	long distance = readSensor();                       // Reads the Sensor
 	setPixel(distance);                                 // Sets the Pixels
+	setBrightness();
 	display();                                          // Displays the Pixels
 	delay(1000000);                                     // Waits 1s
 }
@@ -195,7 +257,7 @@ void loop()
 void app_main(void)
 {
 	
-    *GPIO_ENABLE_REG |= 0b110; 							 // enable GPIO1 and GPIO2 output
+    *gpio_enable_reg |= 0b110; 							 // enable GPIO1 and GPIO2 output
 	config_timer();										 // Configures the Timer
 
 	while(1){
