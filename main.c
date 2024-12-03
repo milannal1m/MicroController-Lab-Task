@@ -120,7 +120,7 @@ void displayLEDs()
 void config_timer()
 {
     /*
-    Configures the Timer
+		Configures the Timer
     */
 
   	*TIMG_T0CONFIG_REG &= ~(1 << 9);						// Enables the APB Clock
@@ -136,10 +136,10 @@ void config_timer()
 long readSensor()
 {
 	/*
-    Reads the Echo Sensor by using a Timer to measure the time between the rising and falling edge of the Echo signal.
-	The Echo Signal is started by setting the Trigger Signal to HIGH for 10us.
-	The Echo Signal is connected to GPIO3 and the Trigger Signal is connected to GPIO2.
-	The time between the rising and falling edge of the Echo signal is converted to cm and returned.
+		Reads the Echo Sensor by using a Timer to measure the time between the rising and falling edge of the Echo signal.
+		The Echo Signal is started by setting the Trigger Signal to HIGH for 10us.
+		The Echo Signal is connected to GPIO3 and the Trigger Signal is connected to GPIO2.
+		The time between the rising and falling edge of the Echo signal is converted to cm and returned.
     */
 
 	long time = 0;                                     		// Variables to save the time at the rising 
@@ -192,9 +192,9 @@ int getDistance()
 void setPixel(long distance)
 {
 	/*
-	Sets the pixels of the LED Strip.
-	Sets 1 LED if an object is 5cm away and 16 LEDs if an object is 50cm away.
-	Also sets the color of the LEDs to fade from green, if the object is close, to yellow, orange and red as the object gets closer.
+		Sets the pixels of the LED Strip.
+		Sets 1 LED if an object is 5cm away and 16 LEDs if an object is 50cm away.
+		Also sets the color of the LEDs to fade from green, if the object is close, to yellow, orange and red as the object gets closer.
 	*/
 
 	int numberOfLEDS = 0;
@@ -294,7 +294,7 @@ void setBrightness()
 void loop()
 {
 	/*
-	Main Loop
+		Main Loop
 	*/
 
 	long distance = getDistance();                       	// Reads the Sensor
