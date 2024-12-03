@@ -35,7 +35,57 @@ void delay(uint32_t us)
 
 }
 
-void display()
+void display(int port, int number){
+
+	int factor = 1;
+
+	for (int n = 7; n >= 0; n--) {                  // For every bit of every number
+			                                        
+		if (number & (1 << n)) {                 // If bit n of number i is 1
+			factor = 2;                             // Set factor to 2 else 1
+		}else{                                  
+			factor = 1;
+		}
+
+		asm volatile (
+
+			//GPIO1 HIGH
+			"lw t1, gpio_out_reg			\n\t"   // t1 = *gpio_out_reg
+			"or t2,t1,%1 					\n\t"   // *gpio_out_reg |= (2)
+			"sw t2, 0(t1)					\n\t"   // store gpio_out_reg
+
+			//Warteschleife HIGH
+			"li t0, 10                  	\n\t"   // t0 = 10
+			"mul t2,t0,%0					\n\t"   // t2 = 10*factor
+			"add t3,t2,zero 				\n\t"   // t3 = t2
+
+			"1:                  			\n\t"
+			"addi t2,t2,-1                  \n\t"   // t2--
+			"bne t2,zero,1b                 \n\t"   // if t2 != 0 -> 1
+
+			//GPIO1 LOW
+			"lw t1,gpio_out_reg				\n\t"   // t1 = *gpio_out_reg
+			"not t0,%1 						\n\t"   // t0 = ~t0
+			"add t2,t1,t0 					\n\t"   // *gpio_out_reg &= ~(2)
+			"sw t2, 0(t1)					\n\t"   // store gpio_out_reg
+
+			//Wartschleife LOW
+			"li t4, 39					    \n\t"   // t4 = 39
+			"sub t3,t4,t3					\n\t"   // t3 = 39 - 10*factor
+
+			"2:                  			\n\t"
+			"addi t3,t3,-1                  \n\t"   // t3--
+			"bne t3,zero,2b                 \n\t"   // if t3 != 0 -> 2
+
+			:
+			:    
+			"r" (factor), "r"(port)                  // %0: adress of factor %1: adress of port
+			: "t0", "t1", "t2","t3","t4"
+		);
+	}
+}
+
+void displayLEDs()
 {
 	/*
         Writes every bit of every number of the pixel data to GPIO1.
@@ -45,93 +95,10 @@ void display()
         In the end waits for 50us to set the LED strip.
     */
 
-	int factor = 1;
-
 	for(int i = 0; i<LEDS*3; i++){                      // For every channel of every LED
-
-		for (int n = 7; n >= 0; n--) {                  // For every bit of every number
-			                                        
-			if (pixels[i] & (1 << n)) {                 // If bit n of number i is 1
-				factor = 2;                             // Set factor to 2 else 1
-			}else{                                  
-				factor = 1;
-			}
-
-			asm volatile (
-
-				//GPIO2 HIGH
-				"li t0,2						\n\t"   // t0 = 2
-				"lw t1, gpio_out_reg			\n\t"   // t1 = *gpio_out_reg
-				"or t2,t1,t0 					\n\t"   // *gpio_out_reg |= (2)
-				"sw t2, 0(t1)					\n\t"   // store gpio_out_reg
-
-				//Warteschleife HIGH
-				"li t0, 10                  	\n\t"   // t0 = 10
-				"mul t2,t0,%0					\n\t"   // t2 = 10*factor
-				"add t3,t2,zero 				\n\t"   // t3 = t2
-
-				"1:                  			\n\t"
-				"addi t2,t2,-1                  \n\t"   // t2--
-				"bne t2,zero,1b                 \n\t"   // if t2 != 0 -> 1
-
-				//GPIO2 LOW
-				"li t0,2						\n\t"   // t0 = 2
-				"lw t1,gpio_out_reg				\n\t"   // t1 = *gpio_out_reg
-				"not t0,t0 						\n\t"   // t0 = ~t0
-				"add t2,t1,t0 					\n\t"   // *gpio_out_reg &= ~(2)
-				"sw t2, 0(t1)					\n\t"   // store gpio_out_reg
-
-				//Wartschleife LOW
-				"li t4, 39					    \n\t"   // t4 = 39
-				"sub t3,t4,t3					\n\t"   // t3 = 39 - 10*factor
-
-				"2:                  			\n\t"
-				"addi t3,t3,-1                  \n\t"   // t3--
-				"bne t3,zero,2b                 \n\t"   // if t3 != 0 -> 2
-
-				:
-				:    
-				"r" (factor)                            // %0: adress of factor
-				: "t0", "t1", "t2","t3","t4"
-			);
-		}
-
+		display(2,pixels[i]);
 	}
-	delay(50);                                          // Wait 50us    
-
-	
-
-}
-
-void setPixel(long distance)
-{
-	/*
-	Sets the Pixels of the LED Strip.
-	Sets 1 LED if an object is 5cm away and 16 LEDs if an object is 50cm away.
-	Also sets the color of the LEDs to fade from green, if the object is close, to yellow, orange and red as the object gets closer.
-	*/
-
-	int numberOfLEDS = 0;
-
-	if(distance < 51 && distance > 4){					// If the distance is between 5 and 50 cm
-		numberOfLEDS = (50-distance)/3 +1;       		// Calculates the number of LEDs to light up
-	}else if(distance < 5){								// If the distance is less than 5 cm
-		numberOfLEDS = 16;								// Sets 16 LED
-	}
-
-	int green = ((16-numberOfLEDS)*10000)/588;     		// Calculates the Green Channel to go from 255-0 as an object gets closer
-	int red = ((numberOfLEDS-1)*10000)/588;  			// Calculates the Red Channel to go from 0-255 as an object gets closer
-
-	for (int i = 0; i < numberOfLEDS*3; i+=3) {
-		pixels[i] = green;								// Sets the Green Channel 
-		pixels[i+1] = red;								// Sets the Red Channel 
-		pixels[i+2] = 0;								// Sets the Blue Channel 
-	}
-
-	for(int i = numberOfLEDS*3; i<LEDS*3; i++){ 		// Sets unused LEDs to 0
-		pixels[i] = 0;									
-	}
-	
+	delay(50);                                          // Wait 50us 
 }
 
 void config_timer()
@@ -159,8 +126,6 @@ long readSensor()
 	The time between the rising and falling edge of the Echo signal is converted to cm and returned.
     */
 
-	printf("test\n\n");
-
 	long time = 0;                                     	// Variables to save the time at the rising 
 	long time2 = 0;									   	// and falling edge of the Echo signal
 	long timediff = 0;							   		// Variable to save the difference between time and time2
@@ -186,6 +151,56 @@ long readSensor()
   	long distance = timediff/58;                        // Calculates the distance in cm
 	return distance;
 
+}
+
+int getDistance()
+{
+	int n = 4;
+	int measurement[n];
+	int mean = 0;
+
+	for(int i = 0; i<n; i++){
+		measurement[i] = readSensor();
+		mean += measurement[i];
+	}
+
+	return mean/n;
+
+}
+
+void setPixel(long distance)
+{
+	/*
+	Sets the Pixels of the LED Strip.
+	Sets 1 LED if an object is 5cm away and 16 LEDs if an object is 50cm away.
+	Also sets the color of the LEDs to fade from green, if the object is close, to yellow, orange and red as the object gets closer.
+	*/
+
+	int numberOfLEDS = 0;
+
+	if(distance < 51 && distance > 4){					// If the distance is between 5 and 50 cm
+		numberOfLEDS = (50-distance)/3 +1;       		// Calculates the number of LEDs to light up
+	}else if(distance < 5){								// If the distance is less than 5 cm
+		numberOfLEDS = 16;								// Sets 16 LED
+	}
+
+	int green = ((16-numberOfLEDS)*10000)/588;     		// Calculates the Green Channel to go from 255-0 as an object gets closer
+	int red = ((numberOfLEDS-1)*10000)/588;  			// Calculates the Red Channel to go from 0-255 as an object gets closer
+
+	for (int i = 0; i < ((numberOfLEDS-1)*3); i+=3) {
+		pixels[i] = green;								// Sets the Green Channel 
+		pixels[i+1] = red;								// Sets the Red Channel 
+		pixels[i+2] = 0;								// Sets the Blue Channel 
+	}
+
+	pixels[(numberOfLEDS-1)*3] = (green * (3-distance%3))/3;						// Sets the Green Channel 
+	pixels[(numberOfLEDS-1)*3+1] = (red * (3-distance%3))/3;						// Sets the Red Channel
+	pixels[(numberOfLEDS-1)*3+2] = 0;							// Sets the Blue Channel 
+
+	for(int i = numberOfLEDS*3; i<LEDS*3; i++){ 		// Sets unused LEDs to 0
+		pixels[i] = 0;									
+	}
+	
 }
 
 void adc_init(){
@@ -247,17 +262,17 @@ void loop()
 	Main Loop
 	*/
 
-	long distance = readSensor();                       // Reads the Sensor
+	long distance = getDistance();                       // Reads the Sensor
 	setPixel(distance);                                 // Sets the Pixels
 	setBrightness();
-	display();                                          // Displays the Pixels
-	delay(1000000);                                     // Waits 1s
+	displayLEDs();                                          // Displays the Pixels
+	delay(200000);                                     // Waits 0.2s
 }
 
 void app_main(void)
 {
 	
-    *gpio_enable_reg |= 0b110; 							 // enable GPIO1 and GPIO2 output
+    *gpio_enable_reg |= 0b110; 					// enable GPIO1 and GPIO2 output
 	config_timer();										 // Configures the Timer
 
 	while(1){
