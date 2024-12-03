@@ -66,7 +66,7 @@ void display(int port, int number){
 			//GPIO1 LOW
 			"lw t1,gpio_out_reg				\n\t"   // t1 = *gpio_out_reg
 			"not t0,%1 						\n\t"   // t0 = ~t0
-			"add t2,t1,t0 					\n\t"   // *gpio_out_reg &= ~(2)
+			"and t2,t1,t0 					\n\t"   // *gpio_out_reg &= ~(2)
 			"sw t2, 0(t1)					\n\t"   // store gpio_out_reg
 
 			//Wartschleife LOW
@@ -96,9 +96,15 @@ void displayLEDs()
     */
 
 	for(int i = 0; i<LEDS*3; i++){                      // For every channel of every LED
-		display(2,pixels[i]);
+		display((1 << 1),pixels[i]);
 	}
-	delay(50);                                          // Wait 50us 
+	delay(50); 
+
+	display((1 << 8),pixels[0]);
+	display((1 << 8),pixels[1]);
+	display((1 << 8),pixels[2]);
+
+	delay(50);                                         // Wait 50us 
 }
 
 void config_timer()
@@ -272,7 +278,7 @@ void loop()
 void app_main(void)
 {
 	
-    *gpio_enable_reg |= 0b110; 					// enable GPIO1 and GPIO2 output
+    *gpio_enable_reg |= 0b100000110; 					// enable GPIO1 and GPIO2 output
 	config_timer();										 // Configures the Timer
 
 	while(1){
