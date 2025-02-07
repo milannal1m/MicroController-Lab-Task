@@ -18,7 +18,7 @@ This project uses an ESP32-C3 microcontroller to control a WS2812 LED strip and 
 - Resistors and wiring as needed
 
 ## Software Requirements
-- ESP-IDF (Espressif IoT Development Framework)
+- ESP-IDF (Development Framework)
 - C compiler compatible with ESP32-C3
 
 ## Wiring Diagram
